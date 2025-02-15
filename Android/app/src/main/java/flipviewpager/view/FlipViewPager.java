@@ -271,98 +271,117 @@ public class FlipViewPager extends FrameLayout {
     public boolean onTouchEvent(MotionEvent ev) {
         int action = ev.getAction();
         trackVelocity(ev);
+
         switch (action & MotionEvent.ACTION_MASK) {
             case MotionEvent.ACTION_DOWN:
-                mLastMotionX = ev.getX();
-                mLastMotionY = ev.getY();
-                mActivePointerId = ev.getPointerId(0);
+                handleActionDown(ev);
                 break;
             case MotionEvent.ACTION_MOVE:
-                if (!mFlipping) {
-                    final int pointerIndex = ev.findPointerIndex(mActivePointerId);
-                    if (pointerIndex == -1) {
-                        mActivePointerId = INVALID_POINTER;
-                        break;
-                    }
-                    float x = ev.getX(pointerIndex);
-                    float xDiff = Math.abs(x - mLastMotionX);
-                    float y = ev.getY(pointerIndex);
-                    float yDiff = Math.abs(y - mLastMotionY);
-
-                    if (xDiff > mTouchSlop && xDiff > yDiff) {
-                        toggleFlip(true);
-                        mLastMotionX = x;
-                        mLastMotionY = y;
-                    }
-                }
-                if (mFlipping) {
-                    int activePointerIndex = ev.findPointerIndex(mActivePointerId);
-                    if (activePointerIndex == -1) {
-                        mActivePointerId = INVALID_POINTER;
-                        break;
-                    }
-                    float deltaFlipDistance = mLastMotionX - ev.getX(activePointerIndex);
-
-                    mLastMotionX = ev.getX(activePointerIndex);
-                    mLastMotionY = ev.getY(activePointerIndex);
-
-                    deltaFlipDistance /= (getWidth() / FLIP_DISTANCE);
-                    setFlipDistance(mFlipDistance + deltaFlipDistance);
-
-                    int minFlipDistance = 0;
-                    int maxFlipDistance = (mPageCount - 1) * FLIP_DISTANCE;
-                    boolean isOverFlipping = mFlipDistance < minFlipDistance || mFlipDistance > maxFlipDistance;
-
-                    if (isOverFlipping) {
-                        this.mOverFlipping = true;
-                        toggleFlip(mFlipping);
-                        setFlipDistance(calculate(mFlipDistance, minFlipDistance, maxFlipDistance));
-                    } else if (this.mOverFlipping) {
-                        this.mOverFlipping = false;
-                    }
-                }
+                handleActionMove(ev);
                 break;
-
             case MotionEvent.ACTION_UP:
             case MotionEvent.ACTION_CANCEL:
-                if (mFlipping) {
-                    mVelocityTracker.computeCurrentVelocity(1000, mMaximumVelocity);
-                    flipToPage(getNextPage((int) mVelocityTracker.getXVelocity(mActivePointerId)));
-                    mActivePointerId = INVALID_POINTER;
-                    mLeftEdgeEffect.onRelease();
-                    mRightEdgeEffect.onRelease();
-                } else if ((action & MotionEvent.ACTION_MASK) == MotionEvent.ACTION_UP) {
-                    if (ev.getRawX() == mLastMotionX || ev.getRawY() == mLastMotionY) {
-                        AdapterView.OnItemClickListener clickListener = null;
-                        if (getParent().getParent() instanceof ListView)
-                            clickListener = ((ListView) getParent().getParent()).getOnItemClickListener();
-
-                        if (clickListener != null) {
-                            if (mCurrentPageIndex == 1 && isLeftClicked(ev)) {
-                                clickListener.onItemClick(null, this, mRow * 2, -1);
-                            } else if (mCurrentPageIndex == 1 && isRightClicked(ev) && mMaxItems > (mRow * 2))
-                                clickListener.onItemClick(null, this, mRow * 2 + 1, -1);
-                        }
-                        return false;
-                    }
-                }
+                handleActionUpOrCancel(ev, action);
                 break;
-            case MotionEvent.ACTION_POINTER_DOWN: {
-                int index = ev.getActionIndex();
-                mLastMotionX = ev.getX(index);
-                mLastMotionY = ev.getY(index);
-                mActivePointerId = ev.getPointerId(index);
+            case MotionEvent.ACTION_POINTER_DOWN:
+                handlePointerDown(ev);
                 break;
-            }
             case MotionEvent.ACTION_POINTER_UP:
-                onSecondaryPointerUp(ev);
-                int index = ev.findPointerIndex(mActivePointerId);
-                mLastMotionX = ev.getX(index);
-                mLastMotionY = ev.getY(index);
+                handlePointerUp(ev);
                 break;
         }
         return true;
     }
+
+    private void handleActionDown(MotionEvent ev) {
+        mLastMotionX = ev.getX();
+        mLastMotionY = ev.getY();
+        mActivePointerId = ev.getPointerId(0);
+    }
+
+    private void handleActionMove(MotionEvent ev) {
+        if (!mFlipping) {
+            final int pointerIndex = ev.findPointerIndex(mActivePointerId);
+            if (pointerIndex == -1) {
+                mActivePointerId = INVALID_POINTER;
+                return;
+            }
+            float x = ev.getX(pointerIndex);
+            float xDiff = Math.abs(x - mLastMotionX);
+            float y = ev.getY(pointerIndex);
+            float yDiff = Math.abs(y - mLastMotionY);
+
+            if (xDiff > mTouchSlop && xDiff > yDiff) {
+                toggleFlip(true);
+                mLastMotionX = x;
+                mLastMotionY = y;
+            }
+        }
+        if (mFlipping) {
+            int activePointerIndex = ev.findPointerIndex(mActivePointerId);
+            if (activePointerIndex == -1) {
+                mActivePointerId = INVALID_POINTER;
+                return;
+            }
+            float deltaFlipDistance = mLastMotionX - ev.getX(activePointerIndex);
+
+            mLastMotionX = ev.getX(activePointerIndex);
+            mLastMotionY = ev.getY(activePointerIndex);
+
+            deltaFlipDistance /= (getWidth() / FLIP_DISTANCE);
+            setFlipDistance(mFlipDistance + deltaFlipDistance);
+
+            int minFlipDistance = 0;
+            int maxFlipDistance = (mPageCount - 1) * FLIP_DISTANCE;
+            boolean isOverFlipping = mFlipDistance < minFlipDistance || mFlipDistance > maxFlipDistance;
+
+            if (isOverFlipping) {
+                this.mOverFlipping = true;
+                toggleFlip(mFlipping);
+                setFlipDistance(calculate(mFlipDistance, minFlipDistance, maxFlipDistance));
+            } else if (this.mOverFlipping) {
+                this.mOverFlipping = false;
+            }
+        }
+    }
+
+    private void handleActionUpOrCancel(MotionEvent ev, int action) {
+        if (mFlipping) {
+            mVelocityTracker.computeCurrentVelocity(1000, mMaximumVelocity);
+            flipToPage(getNextPage((int) mVelocityTracker.getXVelocity(mActivePointerId)));
+            mActivePointerId = INVALID_POINTER;
+            mLeftEdgeEffect.onRelease();
+            mRightEdgeEffect.onRelease();
+        } else if ((action & MotionEvent.ACTION_MASK) == MotionEvent.ACTION_UP) {
+            if (ev.getRawX() == mLastMotionX || ev.getRawY() == mLastMotionY) {
+                AdapterView.OnItemClickListener clickListener = null;
+                if (getParent().getParent() instanceof ListView)
+                    clickListener = ((ListView) getParent().getParent()).getOnItemClickListener();
+
+                if (clickListener != null) {
+                    if (mCurrentPageIndex == 1 && isLeftClicked(ev)) {
+                        clickListener.onItemClick(null, this, mRow * 2, -1);
+                    } else if (mCurrentPageIndex == 1 && isRightClicked(ev) && mMaxItems > (mRow * 2))
+                        clickListener.onItemClick(null, this, mRow * 2 + 1, -1);
+                }
+            }
+        }
+    }
+
+    private void handlePointerDown(MotionEvent ev) {
+        int index = ev.getActionIndex();
+        mLastMotionX = ev.getX(index);
+        mLastMotionY = ev.getY(index);
+        mActivePointerId = ev.getPointerId(index);
+    }
+
+    private void handlePointerUp(MotionEvent ev) {
+        onSecondaryPointerUp(ev);
+        int index = ev.findPointerIndex(mActivePointerId);
+        mLastMotionX = ev.getX(index);
+        mLastMotionY = ev.getY(index);
+    }
+
 
     private boolean isLeftClicked(MotionEvent ev) {
         return mLeftRect.contains((int) ev.getX(), (int) ev.getY());

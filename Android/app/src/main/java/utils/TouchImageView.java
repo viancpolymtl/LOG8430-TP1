@@ -74,6 +74,22 @@ public class TouchImageView extends android.support.v7.widget.AppCompatImageView
     private GestureDetector.OnDoubleTapListener mDoubleTapListener = null;
     private OnTouchListener mUserTouchListener = null;
     private OnTouchImageViewListener mTouchImageViewListener = null;
+
+    class ImageProperties {
+        float prevImageSize;
+        float imageSize;
+        int prevViewSize;
+        int viewSize;
+        int drawableSize;
+
+        public ImageProperties(float prevImageSize, float imageSize, int prevViewSize, int viewSize, int drawableSize) {
+            this.prevImageSize = prevImageSize;
+            this.imageSize = imageSize;
+            this.prevViewSize = prevViewSize;
+            this.viewSize = viewSize;
+            this.drawableSize = drawableSize;
+        }
+    }
     public TouchImageView(Context context) {
         super(context);
         sharedConstructing(context);
@@ -624,19 +640,17 @@ public class TouchImageView extends android.support.v7.widget.AppCompatImageView
             //
             float prevActualWidth = mPrevMatchViewWidth * mNormalizedScale;
             float actualWidth = getImageWidth();
-            translateMatrixAfterRotate(Matrix.MTRANS_X,
-                    transX,
-                    prevActualWidth,
-                    actualWidth,
-                    mPrevViewWidth,
-                    mViewWidth,
-                    drawableWidth);
+
+            ImageProperties img = new ImageProperties(prevActualWidth, actualWidth, mPrevViewWidth, mViewWidth, drawableWidth)
+            translateMatrixAfterRotate(Matrix.MTRANS_X, transX, img);
 
             //
             // Height
             //
             float prevActualHeight = mPrevMatchViewHeight * mNormalizedScale;
             float actualHeight = getImageHeight();
+
+            ImageProperties img = new ImageProperties(prevActualHeight, actualHeight, mPrevViewHeight, mViewHeight, drawableHeight)
             translateMatrixAfterRotate(Matrix.MTRANS_Y,
                     transY,
                     prevActualHeight,
@@ -698,22 +712,18 @@ public class TouchImageView extends android.support.v7.widget.AppCompatImageView
      */
     private void translateMatrixAfterRotate(int axis,
                                             float trans,
-                                            float prevImageSize,
-                                            float imageSize,
-                                            int prevViewSize,
-                                            int viewSize,
-                                            int drawableSize) {
-        if (imageSize < viewSize) {
+                                            ImageProperties img) {
+        if (img.imageSize < img.viewSize) {
             //
             // The width/height of image is less than the view's width/height. Center it.
             //
-            mFloat[axis] = (viewSize - (drawableSize * mFloat[Matrix.MSCALE_X])) * 0.5f;
+            mFloat[axis] = (img.viewSize - (img.drawableSize * mFloat[Matrix.MSCALE_X])) * 0.5f;
 
         } else if (trans > 0) {
             //
             // The image is larger than the view, but was not before rotation. Center it.
             //
-            mFloat[axis] = -((imageSize - viewSize) * 0.5f);
+            mFloat[axis] = -((img.imageSize - img.viewSize) * 0.5f);
 
         } else {
             //
@@ -721,8 +731,8 @@ public class TouchImageView extends android.support.v7.widget.AppCompatImageView
             // from the left/top side of the view as a fraction of the entire image's width/height. Use that percentage
             // to calculate the trans in the new view width/height.
             //
-            float percentage = (Math.abs(trans) + (0.5f * prevViewSize)) / prevImageSize;
-            mFloat[axis] = -((percentage * imageSize) - (viewSize * 0.5f));
+            float percentage = (Math.abs(trans) + (0.5f * img.prevViewSize)) / img.prevImageSize;
+            mFloat[axis] = -((percentage * img.imageSize) - (img.viewSize * 0.5f));
         }
     }
 
